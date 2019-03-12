@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity() {
         button.setOnClickListener {
 
             isInternetAvailable = false
+            isDataSent = false
 
             // Проверка на наличие интернета
             // Если callback пришел "unsuccess"
@@ -138,6 +139,12 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 Log.wtf("Logcat", "Sleep on $i step, on " + sleepPlan[i] + " mlsec")
+
+                if(isDataSent){
+                    Log.wtf("Logcat", "Thread isDataSent")
+
+                    return
+                }
             }
 
             // Тут предполагается некая логика на завершение цикла резапросов
