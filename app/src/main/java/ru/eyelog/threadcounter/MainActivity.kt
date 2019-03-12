@@ -13,8 +13,8 @@ import android.os.Handler
 import android.os.Message
 import android.support.v4.app.NotificationCompat
 import android.util.Log
-import java.lang.Exception
 import java.util.Random
+import kotlin.Exception
 
 class MainActivity : AppCompatActivity() {
 
@@ -48,8 +48,17 @@ class MainActivity : AppCompatActivity() {
             channel.enableVibration(false)
             notificationManager.createNotificationChannel(channel)
         }
+
+        // !!!!Здесь вход в логику!!!!
         button.setOnClickListener {
+
+            isInternetAvailable = false
+
+            // Проверка на наличие интернета
+            // Если callback пришел "unsuccess"
             if (!isInternetAvailable){
+
+                // Запускается уведомление ->
                 builder = NotificationCompat.Builder(this, CHANNEL_ID)
                     .setSmallIcon(android.R.drawable.stat_sys_upload)
                     .setContentTitle("Title")
@@ -58,10 +67,10 @@ class MainActivity : AppCompatActivity() {
                 notification = builder.build()
                 notificationManager.notify(NOTIFICATION_ID, notification)
 
-                thread = Thread(CustomRunnable(random.nextInt(10)))
+                thread = Thread(CustomRunnable(10))
                 thread.start()
             }else{
-                // Do nice logic
+                // Если callback пришел "success" то всё клёво!
             }
         }
     }
@@ -70,20 +79,31 @@ class MainActivity : AppCompatActivity() {
     internal inner class CustomHandler : Handler() {
         override fun handleMessage(message: Message) {
 
-            // Here we actually try to send the data
+            /* * * * * * * * * * * * * * * * * * */
+            // И тут предполагается резаброс реста
+            /* * * * * * * * * * * * * * * * * * */
 
-            val bundle = message.data
-            val doTheNet = bundle.getBoolean("do")
-            if(doTheNet){
-                Log.wtf("Logcat doTheNet", " Actually!")
+            if(!isInternetAvailable){
 
-                notificationManager.cancel(NOTIFICATION_ID)
+                // Ловим вызовы от фонового потока
+                val bundle = message.data
+                val doTheNet = bundle.getBoolean("do")
 
-                // And do send logic
+                // Снова ловим callback и если он пришел "success"
+                if(doTheNet){
+                    Log.wtf("Logcat doTheNet", " Actually!")
 
-                isDataSent = true
-            }else{
-                // Some sad notification =(
+                    // Выключаем уведомление
+                    notificationManager.cancel(NOTIFICATION_ID)
+                    isInternetAvailable = true
+                    isDataSent = true
+
+                    // И занимаемся своими делами
+
+                }else{
+                    // Если callback пришел "unsuccess"
+                    // Фоновый поток продолжает выдавать запросы по заданной схеме
+                }
             }
         }
     }
@@ -93,30 +113,34 @@ class MainActivity : AppCompatActivity() {
         lateinit var message: Message
         var bundle: Bundle
 
+        // План пауз между резабросами реста
+        val sleepPlan : LongArray = longArrayOf(3000, 5000, 7000, 10000, 12000, 15000, 20000, 25000, 30000, 60000)
+
         init {
             customHandler = CustomHandler()
             bundle = Bundle()
         }
 
         override fun run() {
+
+            // Собственно цикл запускающий резапросы в Handler-е
             for (i in 0 until steps) {
                 bundle.putBoolean("do", random.nextBoolean())
                 message = customHandler.obtainMessage()
                 message.data = bundle
                 customHandler.sendMessage(message)
                 try {
-                    Thread.sleep(3000)
+                    Thread.sleep(sleepPlan[i])
                 } catch (e: InterruptedException) {
+                    e.printStackTrace()
+                } catch (e: Exception){
                     e.printStackTrace()
                 }
 
-                if(thread.isInterrupted()){
-                    break
-                }
-
-                Log.wtf("Logcat", "i = $i, steps = $steps")
+                Log.wtf("Logcat", "Sleep on $i step, on " + sleepPlan[i] + " mlsec")
             }
 
+            // Тут предполагается некая логика на завершение цикла резапросов
             bundle.putBoolean("do", true)
             message = customHandler.obtainMessage()
             message.data = bundle
